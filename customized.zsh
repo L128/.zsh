@@ -1,0 +1,9 @@
+source ~/.zsh/EDITOR.zsh
+source ~/.zsh/alias.zsh
+source ~/.zsh/func_brew.zsh
+source ~/.zsh/func_rime.zsh
+source ~/.zsh/func_vms.zsh
+source ~/.zsh/func_install.zsh
+source ~/.zsh/func_update.zsh
+source ~/.zsh/func_restart.zsh
+source ~/.zsh/helmfile_protection.zsh
