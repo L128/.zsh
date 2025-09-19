@@ -6,4 +6,6 @@ source ~/.zsh/func_vms.zsh
 source ~/.zsh/func_install.zsh
 source ~/.zsh/func_update.zsh
 source ~/.zsh/func_restart.zsh
+source ~/.zsh/func_flux.zsh
 source ~/.zsh/helmfile_protection.zsh
+source ~/.zsh/surge.zsh

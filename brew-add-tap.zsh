@@ -11,8 +11,8 @@ check_and_add_tap() {
         else
             echo "添加 $tap_name 失败"
         fi
-    # else
-    #     echo "brew tap $tap_name 已存在"
+    else
+        echo "brew tap $tap_name 已存在"
     fi
 }
 
@@ -20,3 +20,5 @@ check_and_add_tap() {
 # 检查并添加需要的tap仓库
 check_and_add_tap "brewforge/chinese"
 check_and_add_tap "brewforge/extras"
+
+
