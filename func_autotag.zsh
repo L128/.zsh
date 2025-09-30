@@ -108,10 +108,18 @@ autotag() {
         # 检查是否有未提交的变更（新增提示）
         if ! git diff --quiet --exit-code; then
             echo -e "${YELLOW}⚠️  检测到未提交的变更，建议先执行 git commit 提交后再创建标签${RESET}"
-            read -p "是否继续创建标签（可能关联到旧提交）？[y/N] " -n 1 -r
-            echo
-            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                echo -e "${YELLOW}⚠️  操作已取消，请先提交变更${RESET}"
+            # 在非交互式shell中，自动取消操作
+            if [ -t 0 ]; then
+                # 交互式shell - 询问用户
+                read -p "是否继续创建标签（可能关联到旧提交）？[y/N] " -n 1 -r
+                echo
+                if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                    echo -e "${YELLOW}⚠️  操作已取消，请先提交变更${RESET}"
+                    return 1
+                fi
+            else
+                # 非交互式shell - 直接取消
+                echo -e "${YELLOW}⚠️  在非交互式环境中，操作已取消，请先提交变更${RESET}"
                 return 1
             fi
         fi
@@ -123,10 +131,28 @@ autotag() {
         local new_tag=$(__autotag_increment "${version_parts[0]}" "${version_parts[1]}" "${version_parts[2]}" "$increment_type")
 
         echo -e "${GREEN}✅ 计算新版本号：$new_tag（${increment_type}递增）${RESET}"
+        
+        # 检查标签是否已存在
+        if git tag -l | grep -q "^$new_tag$"; then
+            echo -e "${RED}❌ 标签 '$new_tag' 已存在，请尝试使用其他版本类型：${RESET}"
+            echo -e "  - autotag minor    # 递增次版本号"
+            echo -e "  - autotag major    # 递增主版本号"
+            return 1
+        fi
+        
         echo -e "${GREEN}📦 正在创建Git Tag...${RESET}"
-        git tag -a "$new_tag" -m "Release $new_tag"
+        if ! git tag -a "$new_tag" -m "Release $new_tag"; then
+            echo -e "${RED}❌ 创建标签失败，请检查错误信息并手动重试${RESET}"
+            return 1
+        fi
+        
         echo -e "${GREEN}🚀 正在推送Tag到远程...${RESET}"
-        git push origin "$new_tag"
+        if ! git push origin "$new_tag"; then
+            echo -e "${RED}❌ 推送标签失败，请检查网络连接或权限后重试${RESET}"
+            # 可选：如果推送失败，可以考虑删除本地标签
+            # git tag -d "$new_tag"
+            return 1
+        fi
         
         # 获取当前分支名
         local current_branch
