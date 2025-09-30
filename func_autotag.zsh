@@ -109,7 +109,6 @@ autotag() {
         git push origin "$new_tag"
 
         echo -e "\n${GREEN}🎉 操作完成！新Tag已推送：$new_tag${RESET}"
-        echo -e "${YELLOW}💡 提示：Hugo部署后，Blowfish页脚将自动读取此Tag作为版本号${RESET}"
     }
 
     # 子命令解析
