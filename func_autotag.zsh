@@ -36,26 +36,41 @@ autotag() {
         
         if [ -z "$latest_tag" ]; then
             echo -e "${YELLOW}⚠️  未检测到现有Git Tag，将使用默认版本 ${TAG_PREFIX}${DEFAULT_VERSION}${RESET}"
-            echo "${TAG_PREFIX}${DEFAULT_VERSION}"
+            echo -n "${TAG_PREFIX}${DEFAULT_VERSION}"  # 使用-n参数确保不输出额外的换行符
         else
-            echo "$latest_tag"
+            echo -n "$latest_tag"  # 使用-n参数确保不输出额外的换行符
         fi
     }
 
-    # 内部辅助函数：解析版本号
+    # 内部辅助函数：解析版本号（过滤掉颜色代码和emoji）
     __autotag_parse() {
         local tag="$1"
-        local version=${tag#$TAG_PREFIX}
+        # 过滤掉ANSI颜色代码
+        local clean_tag=$(echo "$tag" | sed 's/\x1b\[[0-9;]*m//g')
+        # 过滤掉emoji和其他非ASCII字符
+        clean_tag=$(echo "$clean_tag" | LC_CTYPE=C sed 's/[^[:print:]]//g')
+        local version=${clean_tag#$TAG_PREFIX}
         IFS='.' read -r major minor patch <<< "$version"
         echo "$major $minor $patch"
     }
 
-    # 内部辅助函数：递增版本号
+    # 内部辅助函数：递增版本号（包含输入验证）
     __autotag_increment() {
         local major="$1"
         local minor="$2"
         local patch="$3"
         local increment_type="$4"
+
+        # 输入验证：确保版本号部分为数字
+        if ! [[ "$major" =~ ^[0-9]+$ ]]; then
+            major=0
+        fi
+        if ! [[ "$minor" =~ ^[0-9]+$ ]]; then
+            minor=0
+        fi
+        if ! [[ "$patch" =~ ^[0-9]+$ ]]; then
+            patch=0
+        fi
 
         case "$increment_type" in
             major)
