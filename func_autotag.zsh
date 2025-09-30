@@ -5,6 +5,7 @@ autotag() {
     # 配置与常量（局部变量，仅在autotag函数内可见）
     local TAG_PREFIX="V"
     local DEFAULT_VERSION="1.0.0"
+    local DEFAULT_BRANCH="main"  # 可配置的默认分支名称
     local RED="\033[31m"
     local GREEN="\033[32m"
     local YELLOW="\033[33m"
@@ -13,8 +14,12 @@ autotag() {
     # 内部辅助函数：显示帮助信息（补充提交前置说明）
     __autotag_show_help() {
         echo -e "\n${YELLOW}Usage: autotag [COMMAND]${RESET}"
-        echo -e "自动递增Git Tag版本号（适配Hugo+Blowfish项目）\n"
+        echo -e "自动递增Git Tag版本号并同步更新默认分支（适配Hugo+Blowfish项目）\n"
         echo -e "注意：使用前请确保已通过 git commit 提交所有变更，标签将关联最新提交\n"
+        echo -e "功能特点："
+        echo -e "  - 自动递增版本号（major/minor/patch）"
+        echo -e "  - 创建并推送Git Tag到远程仓库"
+        echo -e "  - 自动同步更新${DEFAULT_BRANCH}分支（拉取最新更改、合并当前分支、推送更新）\n"
         echo -e "Commands:"
         echo -e "  patch        递增修订号（默认，V1.2.3 → V1.2.4）"
         echo -e "  minor        递增次版本号（V1.2.3 → V1.3.0）"
@@ -24,7 +29,7 @@ autotag() {
         echo -e "  # 1. 先提交变更"
         echo -e "  git add ."
         echo -e "  git commit -m '修复页脚样式问题'"
-        echo -e "  # 2. 再创建并推送标签"
+        echo -e "  # 2. 再创建并推送标签（同时同步更新${DEFAULT_BRANCH}分支）"
         echo -e "  autotag          # 等同于 autotag patch"
         echo -e "  autotag minor    # 次版本号递增"
     }
@@ -122,8 +127,33 @@ autotag() {
         git tag -a "$new_tag" -m "Release $new_tag"
         echo -e "${GREEN}🚀 正在推送Tag到远程...${RESET}"
         git push origin "$new_tag"
+        
+        # 获取当前分支名
+        local current_branch
+        current_branch=$(git symbolic-ref --short HEAD)
+        
+        # 同步更新默认分支
+        if [ "$current_branch" != "$DEFAULT_BRANCH" ]; then
+            echo -e "${GREEN}🔄 正在同步更新$DEFAULT_BRANCH分支...${RESET}"
+            git checkout "$DEFAULT_BRANCH"
+            if ! git pull origin "$DEFAULT_BRANCH" --rebase; then
+                echo -e "${RED}❌ 拉取远程分支时发生冲突，请手动解决后重试${RESET}"
+                git checkout "$current_branch"
+                return 1
+            fi
+            if ! git merge --no-ff "$current_branch" -m "Merge branch '$current_branch' for release $new_tag"; then
+                echo -e "${RED}❌ 合并分支时发生冲突，请手动解决后重试${RESET}"
+                git checkout "$current_branch"
+                return 1
+            fi
+            git push origin "$DEFAULT_BRANCH"
+            git checkout "$current_branch"
+        else
+            echo -e "${GREEN}🔄 正在推送$DEFAULT_BRANCH分支更新...${RESET}"
+            git push origin "$DEFAULT_BRANCH"
+        fi
 
-        echo -e "\n${GREEN}🎉 操作完成！新Tag已推送：$new_tag${RESET}"
+        echo -e "\n${GREEN}🎉 操作完成！新Tag已推送，main分支已同步更新：$new_tag${RESET}"
     }
 
     # 子命令解析

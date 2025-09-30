@@ -16,6 +16,13 @@
 
 ### 自定义功能函数
 
+#### Git 标签自动生成
+- [func_autotag.zsh](func_autotag.zsh) - 自动生成和管理 Git 版本标签：
+  - `autotag` - 递增版本号并创建新的 Git 标签
+  - 支持自动同步更新默认分支（默认为 main）
+  - 包含版本号验证和冲突处理机制
+  - 版本格式为 V{major}.{minor}.{patch}
+
 #### Brew 管理
 - [func_brew.zsh](func_brew.zsh) - 扩展 brew 命令：
   - `brew u` - 一键更新/安装预定义的 formulas 和 casks
@@ -45,7 +52,13 @@
   - 阻止 `helmfile destroy` 命令以保护持久卷不被删除
 
 #### 虚拟机管理
-- [func_vms.zsh](func_vms.zsh) - 虚拟机管理功能（根据文件名推测）
+- [func_vms.zsh](func_vms.zsh) - 虚拟机管理功能
+
+#### Flux CD 管理
+- [func_flux.zsh](func_flux.zsh) - 管理 Flux CD 相关操作
+
+#### Surge 工具管理
+- [surge.zsh](surge.zsh) - Surge 工具配置和扩展
 
 ### 配置导入
 - [customized.zsh](customized.zsh) - 主配置文件，导入所有功能模块
