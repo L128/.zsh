@@ -2,7 +2,7 @@
 
 # 主命令入口
 autotag() {
-    # 配置与常量（局部变量，仅在autotag函数内可见）
+    # 配置与常量（在函数内部定义，保持封装性）
     local TAG_PREFIX="V"
     local DEFAULT_VERSION="1.0.0"
     local DEFAULT_BRANCH="main"  # 可配置的默认分支名称
@@ -12,9 +12,9 @@ autotag() {
     local RESET="\033[0m"
 
     # 内部辅助函数：显示帮助信息（补充提交前置说明）
-    __autotag_show_help() {
+    local __autotag_show_help() {
         echo -e "\n${YELLOW}Usage: autotag [COMMAND]${RESET}"
-        echo -e "自动递增Git Tag版本号并同步更新默认分支（适配Hugo+Blowfish项目）\n"
+        echo -e "自动递增Git Tag版本号并同步更新默认分支"
         echo -e "注意：使用前请确保已通过 git commit 提交所有变更，标签将关联最新提交\n"
         echo -e "功能特点："
         echo -e "  - 自动递增版本号（major/minor/patch）"
@@ -35,9 +35,15 @@ autotag() {
     }
 
     # 内部辅助函数：获取最新Tag
-    __autotag_get_latest() {
+    local __autotag_get_latest() {
         local latest_tag
-        latest_tag=$(git describe --abbrev=0 --tags 2>/dev/null)
+        # 优先尝试使用更可靠的方式获取最新标签（按版本号排序）
+        latest_tag=$(git tag -l --sort=-version:refname "${TAG_PREFIX}*" 2>/dev/null | head -n 1)
+        
+        # 如果上述方法失败，回退到原始方法
+        if [ -z "$latest_tag" ]; then
+            latest_tag=$(git describe --abbrev=0 --tags 2>/dev/null)
+        fi
         
         if [ -z "$latest_tag" ]; then
             echo -e "${YELLOW}⚠️  未检测到现有Git Tag，将使用默认版本 ${TAG_PREFIX}${DEFAULT_VERSION}${RESET}"
@@ -47,36 +53,56 @@ autotag() {
         fi
     }
 
-    # 内部辅助函数：解析版本号（过滤掉颜色代码和emoji）
-    __autotag_parse() {
+    # 内部辅助函数：解析版本号（使用最可靠的方法）
+    local __autotag_parse() {
+        # 完全重写的解析函数，避免使用任何可能有问题的zsh特性
         local tag="$1"
-        # 过滤掉ANSI颜色代码
-        local clean_tag=$(echo "$tag" | sed 's/\x1b\[[0-9;]*m//g')
-        # 过滤掉emoji和其他非ASCII字符
-        clean_tag=$(echo "$clean_tag" | LC_CTYPE=C sed 's/[^[:print:]]//g')
-        local version=${clean_tag#$TAG_PREFIX}
-        IFS='.' read -r major minor patch <<< "$version"
+        
+        # 移除标签前缀 - 使用更简单的方法
+        local version="$tag"
+        if [[ "$version" == $TAG_PREFIX* ]]; then
+            version=${version#$TAG_PREFIX}
+        fi
+        
+        # 初始化默认值
+        local major=0 minor=0 patch=0
+        
+        # 最简单的解析方法 - 手动分割字符串
+        local part1="$(echo "$version" | cut -d. -f1)"
+        local part2="$(echo "$version" | cut -d. -f2)"
+        local part3="$(echo "$version" | cut -d. -f3)"
+        
+        # 确保是数字
+        if [[ "$part1" =~ ^[0-9]+$ ]]; then
+            major="$part1"
+        fi
+        if [[ "$part2" =~ ^[0-9]+$ ]]; then
+            minor="$part2"
+        fi
+        if [[ "$part3" =~ ^[0-9]+$ ]]; then
+            patch="$part3"
+        fi
+        
+        # 输出结果
         echo "$major $minor $patch"
     }
 
-    # 内部辅助函数：递增版本号（包含输入验证）
-    __autotag_increment() {
-        local major="$1"
-        local minor="$2"
-        local patch="$3"
-        local increment_type="$4"
+    # 内部辅助函数：递增版本号（使用最简单的实现）
+    local __autotag_increment() {
+        local tag="$1"
+        local increment_type="$2"
+        
+        # 确保increment_type有值，默认为patch
+        increment_type=${increment_type:-patch}
 
-        # 输入验证：确保版本号部分为数字
-        if ! [[ "$major" =~ ^[0-9]+$ ]]; then
-            major=0
-        fi
-        if ! [[ "$minor" =~ ^[0-9]+$ ]]; then
-            minor=0
-        fi
-        if ! [[ "$patch" =~ ^[0-9]+$ ]]; then
-            patch=0
-        fi
+        # 调用解析函数获取版本号各部分，但不使用数组
+        # 而是使用临时变量和基本文本处理
+        local parsed_output=$(__autotag_parse "$tag")
+        local major=$(echo "$parsed_output" | cut -d' ' -f1)
+        local minor=$(echo "$parsed_output" | cut -d' ' -f2)
+        local patch=$(echo "$parsed_output" | cut -d' ' -f3)
 
+        # 递增逻辑
         case "$increment_type" in
             major)
                 major=$((major + 1))
@@ -87,16 +113,18 @@ autotag() {
                 minor=$((minor + 1))
                 patch=0
                 ;;
-            patch)
+            *)
+                # patch或其他任何情况，都递增patch
                 patch=$((patch + 1))
                 ;;
         esac
 
+        # 返回新的版本号
         echo "${TAG_PREFIX}${major}.${minor}.${patch}"
     }
 
     # 内部主逻辑执行函数
-    __autotag_execute() {
+    local __autotag_execute() {
         local increment_type="$1"
 
         # 检查是否在Git仓库
@@ -127,8 +155,8 @@ autotag() {
         # 执行版本号更新流程
         echo -e "${GREEN}🔍 正在检测最新Git Tag...${RESET}"
         local latest_tag=$(__autotag_get_latest)
-        local -a version_parts=($(__autotag_parse "$latest_tag"))
-        local new_tag=$(__autotag_increment "${version_parts[0]}" "${version_parts[1]}" "${version_parts[2]}" "$increment_type")
+        local parsed_output=$(__autotag_parse "$latest_tag")
+        local new_tag=$(__autotag_increment "$latest_tag" "$increment_type")
 
         echo -e "${GREEN}✅ 计算新版本号：$new_tag（${increment_type}递增）${RESET}"
         
@@ -194,7 +222,8 @@ autotag() {
         major)
             __autotag_execute "major"
             ;;
-        help)
+        help|--help|-h)
+            # 支持多种帮助命令格式
             __autotag_show_help
             ;;
         *)
