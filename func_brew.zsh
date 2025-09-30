@@ -1,11 +1,7 @@
 #!/bin/zsh
 # 自定义 brew 命令，覆盖 update 子命令
 brew() {
-  if [ "$1" = "ua" ]; then
-    # 当执行 brew update 时，运行 ansible 剧本
-    # ansible-playbook -i ~/.ansible/inventory/hosts ~/.ansible/playbooks/brew_update.yml
-    # ansible-playbook ~/.ansible/playbooks/brew_update.yml
-  elif [ "$1" = "u" ]; then
+  if [ "$1" = "u" ]; then
     echo "=== 开始全量 Brew 管理（安装+更新）==="
     echo
     # 先更新 brew 自身索引（确保能获取最新软件版本）
@@ -17,8 +13,6 @@ brew() {
     manage_brew_casks "$device_name"
     brew upgrade
     echo "=== 全量 Brew 管理完成 ===" 
-  elif [ "$1" = "add" ] && [ "$2" = "tap" ]; then
-    source ~/.zsh/brew-add-tap.zsh
   elif [ "$1" = "install" ] && [ "$2" = "brew" ]; then
     # /bin/zsh -c "$(curl -fsSL https://gitee.com/cunkai/HomebrewCN/raw/master/Homebrew.sh)"
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -46,6 +40,8 @@ local BREW_FORMULAS=(
   "kustomize"
   "repomix"
   "telnet"
+  "wget"
+  "hugo"
 )
 
 # 定义通用的 brew cask 列表（所有设备都安装）
@@ -58,7 +54,8 @@ local BREW_CASKS_COMMON=(
   "squirrel-app"
   "alfred"
   "bartender"
-  "pronotes"  
+  "pronotes"
+  "hugo"
 )
 
 # 定义非工作设备的 brew cask 列表
@@ -67,6 +64,7 @@ local BREW_CASKS_NONWORK=(
   # "surge"
   "trae-cn"
   "whatsapp"
+  # "container"
 )
 # 函数：处理 Formula（未安装则安装，已安装则更新）
 manage_brew_formulas() {
